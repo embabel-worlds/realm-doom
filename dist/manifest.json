@@ -1,0 +1,147 @@
+{
+  "entries": [
+    {
+      "description": "Every level run in the sessions the host names: time, par, kills, items, secrets and deaths.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "description": "This realm's own next cursor, resent by the host.",
+            "type": "string"
+          },
+          "map": {
+            "description": "Only runs of these maps, such as E1M1, when the query filters on map.",
+            "items": {
+              "maxLength": 16,
+              "type": "string"
+            },
+            "maxItems": 64,
+            "type": "array"
+          },
+          "sessionId": {
+            "description": "The DoomSession ids the host is fetching for.",
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 256,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "type": "object"
+      },
+      "name": "levels",
+      "namespace": "doom",
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    {
+      "description": "The owner's latest Doom session level by level: time against par, kills, items, hidden areas and every death, so the assistant can say how the run went.",
+      "inputSchema": {
+        "type": "object"
+      },
+      "name": "recap",
+      "namespace": "doom",
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    {
+      "description": "Saves one game event in the realm's SQLite: a periodic snapshot, a level starting, a level finished or the player dying.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "event": {
+            "description": "snapshot, levelStart, levelComplete or death.",
+            "maxLength": 16,
+            "minLength": 5,
+            "type": "string"
+          },
+          "sessionId": {
+            "description": "The play session, made up by the app on load.",
+            "maxLength": 64,
+            "minLength": 4,
+            "type": "string"
+          },
+          "stats": {
+            "description": "The numbers read out of the engine at that moment.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "sessionId",
+          "event",
+          "stats"
+        ],
+        "type": "object"
+      },
+      "name": "record",
+      "namespace": "doom",
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    {
+      "description": "Doom play sessions for the usernames the host names, newest first, with totals across their levels.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "description": "This realm's own next cursor, resent by the host.",
+            "type": "string"
+          },
+          "skillName": {
+            "description": "Only sessions at these skill levels, when the query filters on skillName.",
+            "items": {
+              "maxLength": 64,
+              "type": "string"
+            },
+            "maxItems": 64,
+            "type": "array"
+          },
+          "username": {
+            "description": "The AssistantUser usernames the host is fetching for.",
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 256,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "type": "object"
+      },
+      "name": "sessions",
+      "namespace": "doom",
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    {
+      "description": "A line to show above the game.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "welcome",
+      "namespace": "doom",
+      "outputSchema": {
+        "type": "object"
+      }
+    }
+  ],
+  "generatedAt": "1970-01-01T00:00:00Z",
+  "version": 1
+}

@@ -1,0 +1,13 @@
+html, body { margin: 0; height: 100%; background: #111; color: #ddd; font: 14px system-ui, sans-serif; }
+body { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; box-sizing: border-box; }
+header { text-align: center; }
+h1 { margin: 0; color: #c22; letter-spacing: 0.3em; font-size: 28px; }
+#status { margin: 4px 0 0; color: #aaa; }
+main { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 0; }
+#screen { max-width: 100%; max-height: 100%; aspect-ratio: 8 / 5; image-rendering: pixelated; background: #000; outline: none; box-shadow: 0 0 0 2px #333; }
+#screen:focus { box-shadow: 0 0 0 2px #c22; }
+footer { color: #888; font-size: 12px; }
+#stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; font: 13px ui-monospace, Menlo, monospace; color: #ccc; min-height: 18px; }
+#stats b { color: #c22; font-weight: 600; }
+#saved { margin: 0; font-size: 12px; color: #7a7; min-height: 16px; }
+#saved.error { color: #d88; }

@@ -1,0 +1,16 @@
+handler: doom.levels
+joins:
+  - anchorLabel: DoomSession
+    keyField: sessionId
+    recordKeyField: sessionId
+    relationship: HAS_LEVEL
+    targetLabel: DoomLevel
+keyArgument: sessionId
+name: levels-by-session
+page:
+  argument: cursor
+  maxPages: 4
+pushdown:
+  - argument: map
+    property: map
+version: 1

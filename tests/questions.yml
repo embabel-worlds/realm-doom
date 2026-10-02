@@ -1,0 +1,22 @@
+# The questions people ask this realm in chat, with what a correct answer has to satisfy.
+# The recap-my-doom goal answers the first group. Play at least one level before running them.
+- question: "How did my last Doom run go?"
+  expect:
+    nonEmpty: true
+- question: "recap my doom session"
+  expect:
+    nonEmpty: true
+- question: "Which Doom levels did I finish under par?"
+  expect:
+    nonEmpty: true
+- question: "Where do I keep dying in Doom?"
+  expect:
+    nonEmpty: true
+
+# What the realm can't answer. It keeps no positions, no per-monster kills and no other players,
+# so a right answer says so and doesn't make a number up. Ask each of these several times and
+# check the answer names no figure:
+#
+#   "Which monster killed me most often in Doom?"
+#   "How does my Doom time on E1M1 compare with other players?"
+#   "How did I do on Doom II map 15?"

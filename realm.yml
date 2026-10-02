@@ -1,0 +1,10 @@
+name: doom
+host: wasm
+version: 0.2.0
+description: Doom, shareware episode one, in a realm browser app.
+author: embabel
+url: https://github.com/embabel-worlds/realm-doom
+icon: icon.svg
+tags:
+  - game
+  - demo

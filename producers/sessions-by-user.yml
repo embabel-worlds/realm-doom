@@ -1,0 +1,16 @@
+handler: doom.sessions
+joins:
+  - anchorLabel: AssistantUser
+    keyField: username
+    recordKeyField: username
+    relationship: PLAYED_DOOM
+    targetLabel: DoomSession
+keyArgument: username
+name: sessions-by-user
+page:
+  argument: cursor
+  maxPages: 4
+pushdown:
+  - argument: skillName
+    property: skillName
+version: 1

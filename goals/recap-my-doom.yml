@@ -1,0 +1,6 @@
+description: "Recaps the owner's latest Doom session: which levels they finished, how they did against par, what they missed and where they died."
+goal: recap-my-doom
+handler: doom.recap
+input: UserInput
+output: DoomRecap
+version: 1

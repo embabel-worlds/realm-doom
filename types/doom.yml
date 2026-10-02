@@ -1,0 +1,8 @@
+- description: The owner's latest Doom session, level by level, with every death.
+  name: DoomRecap
+  properties:
+    summary:
+      description: "The session in plain words: each level run, its numbers and where the player died."
+      type: string
+  userAnchor: false
+  visibility: internal

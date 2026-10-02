@@ -1,0 +1,13 @@
+{
+  "handlers": [
+    "doom.welcome",
+    "doom.record"
+  ],
+  "resources": [
+    "apps/doom.html.assets/app.css",
+    "apps/doom.html.assets/engine.js",
+    "apps/doom.html.assets/wad.js",
+    "apps/doom.html.assets/app.js"
+  ],
+  "version": 1
+}

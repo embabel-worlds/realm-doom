@@ -1,0 +1,16 @@
+# Tips the host shows while the doom realm is installed.
+- category: hint
+  surface: all
+  title: Ask how your Doom run went
+  body: "After a session, ask **how did my last Doom run go?** The assistant reads your levels, par times and deaths from the realm and tells you what happened."
+  action:
+    label: Ask it
+    chatInput: "How did my last Doom run go?"
+- category: did-you-know
+  surface: console
+  title: Your Doom levels are in the graph
+  body: "Every level you play becomes a `DoomLevel` under a `DoomSession`. Try `MATCH (u:AssistantUser)-[:PLAYED_DOOM]->(s:DoomSession)-[:HAS_LEVEL]->(l:DoomLevel) RETURN l.map, l.timeSeconds, l.underPar` in Virtual Cypher."
+- category: fun-fact
+  surface: all
+  title: Par times are the designers' own
+  body: "Doom's par for a level is the time its designers thought a good player needed. E1M1's is 30 seconds. The realm tells you whether you beat it."
