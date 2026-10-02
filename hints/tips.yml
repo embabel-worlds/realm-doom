@@ -6,6 +6,13 @@
   action:
     label: Ask it
     chatInput: "How did my last Doom run go?"
+- category: hint
+  surface: all
+  title: Compare Doom runs with a friend
+  body: "Open Scoreboard in the app and press **Make my card**. Send the code to a friend and add theirs with **Add friend**. Then ask who is fastest."
+  action:
+    label: Ask it
+    chatInput: "Who is fastest on E1M1 in Doom, me or my friends?"
 - category: did-you-know
   surface: console
   title: Your Doom levels are in the graph

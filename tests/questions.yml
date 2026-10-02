@@ -12,11 +12,21 @@
 - question: "Where do I keep dying in Doom?"
   expect:
     nonEmpty: true
+- question: "Who is fastest on E1M1 in Doom, me or my friends?"
+  expect:
+    nonEmpty: true
+- question: "Which of my Doom friends has the most wins?"
+  expect:
+    nonEmpty: true
+- question: "Which Doom levels have I finished faster than my friends?"
+  expect:
+    nonEmpty: true
 
-# What the realm can't answer. It keeps no positions, no per-monster kills and no other players,
+# What the realm can't answer. It keeps no positions, no per-monster kills and no players you haven't added as friends,
 # so a right answer says so and doesn't make a number up. Ask each of these several times and
 # check the answer names no figure:
 #
 #   "Which monster killed me most often in Doom?"
 #   "How does my Doom time on E1M1 compare with other players?"
 #   "How did I do on Doom II map 15?"
+#   "What is the world record for E1M1?"

@@ -10,13 +10,52 @@ MATCH (u:AssistantUser)-[:PLAYED_DOOM]->(s:DoomSession)-[:HAS_LEVEL]->(l:DoomLev
 RETURN s.startedAt, l.map, l.kills, l.totalKills, l.timeSeconds, l.underPar
 ```
 
+You can also compare your best runs with friends by trading score cards.
+
+## Playing against friends
+
+A card is a code that starts with `DOOM1-`. It holds a player's name and their best run of every
+level. The app's sandbox has no network, which is why stats travel as a code.
+
+1. Open the app and go to Scoreboard.
+2. Press "Make my card" and send the code to a friend any way you like.
+3. Your friend presses "Add friend" and pastes it in.
+
+A newer card from the same player replaces the older one. You can keep up to 32 friends.
+
+Runs earn medals. Impressive means you finished at or under par. Excellent means you killed every
+monster. Perfect means all kills, all items and all hidden areas.
+
+Cards are not signed, and nothing checks that a card is honest. They are for playing against people
+you know.
+
+Friends show up in the graph as `(:AssistantUser)-[:KNOWS_DOOM_PLAYER]->(:DoomPlayer)-[:HAS_BEST]->(:DoomBest)`.
+A `DoomPlayer` has `playerId`, `name`, `isOwner`, `cardDate`, `wins`, `levelsFinished`,
+`levelsUnderPar` and `deaths`. A `DoomBest` has `bestId`, `playerId`, `playerName`, `map`, `skill`,
+`skillName`, `rank`, `finished`, `bestSeconds`, `parSeconds`, `underPar`, `killPercent`,
+`itemPercent`, `hiddenAreaPercent`, `deaths`, `runs` and `awards`. A filter on `b.map` is pushed
+down to the handler. To see who is fastest on E1M1:
+
+```cypher
+MATCH (u:AssistantUser)-[:KNOWS_DOOM_PLAYER]->(p:DoomPlayer)-[:HAS_BEST]->(b:DoomBest)
+WHERE b.map = 'E1M1' AND b.finished
+RETURN p.name, b.skillName, b.bestSeconds, b.awards
+ORDER BY b.bestSeconds
+```
+
 ## What's in here
 
 | Path | What it is |
 |---|---|
 | `realm.yml`, `producers/`, `dist/`, `dependencies/`, `apps/doom.html.app.json` | What the appliance installs. Written by synth from `realm.ts`; don't edit by hand. |
 | `realm.ts` | The realm: `doom.welcome`, `doom.record`, the two producers, the SQLite dependency and the app. |
-| `wasm/handlers.ts` | The handlers. `record` saves game events; `sessions` and `levels` feed the producers. |
+| `wasm/handlers.ts` | The handlers. `record` saves game events; `sessions` and `levels` feed the producers. The card handlers are `doom.shareCard`, `doom.importCard`, `doom.removeFriend`, `doom.scoreboard`, `doom.players` and `doom.bests`. |
+| `tests/handlers.test.ts` | Unit tests for the handlers. |
+| `tests/cards.test.ts` | Unit tests for friend cards. |
+| `tests/questions.yml` | The questions people ask in chat, and the ones the realm can't answer. |
+| `hints/tips.yml` | The tips the host shows while the realm is installed. |
+| `goals/` | The recap goal. |
+| `types/` | The graph types. |
 | `db/schema.sql` | The tables behind sessions and levels. |
 | `apps/doom.html` | The page: the screen, a stats strip and the key hints. |
 | `apps/doom.html.assets/app.js`, `app.css` | The app code and styles. |
