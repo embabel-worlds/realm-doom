@@ -1,13 +1,46 @@
-html, body { margin: 0; height: 100%; background: #111; color: #ddd; font: 14px system-ui, sans-serif; }
+html, body { margin: 0; min-height: 100%; background: #111; color: #ddd; font: 14px system-ui, sans-serif; }
 body { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; box-sizing: border-box; }
 header { text-align: center; }
 h1 { margin: 0; color: #c22; letter-spacing: 0.3em; font-size: 28px; }
 #status { margin: 4px 0 0; color: #aaa; }
-main { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 0; }
-#screen { max-width: 100%; max-height: 100%; aspect-ratio: 8 / 5; image-rendering: pixelated; background: #000; outline: none; box-shadow: 0 0 0 2px #333; }
+main { display: flex; justify-content: center; width: 100%; }
+#screen { width: min(960px, 100%); height: auto; aspect-ratio: 8 / 5; image-rendering: pixelated; background: #000; outline: none; box-shadow: 0 0 0 2px #333; }
 #screen:focus { box-shadow: 0 0 0 2px #c22; }
 footer { color: #888; font-size: 12px; }
 #stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; font: 13px ui-monospace, Menlo, monospace; color: #ccc; min-height: 18px; }
 #stats b { color: #c22; font-weight: 600; }
 #saved { margin: 0; font-size: 12px; color: #7a7; min-height: 16px; }
 #saved.error { color: #d88; }
+
+/* The scoreboard, styled like an arena shooter's results screen. */
+#board { width: min(960px, 100%); box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #181818; box-shadow: 0 0 0 2px #333; }
+#board h2 { margin: 0; color: #c22; letter-spacing: 0.2em; text-transform: uppercase; font-size: 18px; }
+#board [hidden] { display: none; }
+.board-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.board-row label { flex: 0 0 120px; color: #aaa; font-size: 13px; }
+#board input, #board textarea { flex: 1 1 200px; min-width: 0; box-sizing: border-box; background: #000; color: #ddd; border: 1px solid #444; padding: 6px; font: 12px ui-monospace, Menlo, monospace; }
+#board textarea { resize: vertical; word-break: break-all; }
+#board input:focus, #board textarea:focus { outline: none; border-color: #c22; }
+#board button { background: #2a0a0a; color: #eee; border: 1px solid #c22; padding: 6px 12px; font: inherit; cursor: pointer; }
+#board button:hover:not(:disabled) { background: #c22; }
+#board button:disabled { opacity: 0.5; cursor: default; }
+#board button.remove { padding: 2px 8px; font-size: 12px; border-color: #555; background: transparent; color: #aaa; }
+#board button.remove:hover:not(:disabled) { border-color: #c22; background: #c22; color: #fff; }
+#board-status { margin: 0; min-height: 16px; font-size: 12px; color: #7a7; }
+#board-status.error { color: #d88; }
+#levels { display: flex; flex-direction: column; gap: 12px; }
+#levels .empty { margin: 0; color: #888; }
+.table-box { overflow-x: auto; max-width: 100%; border: 1px solid #333; }
+#board table { width: 100%; border-collapse: collapse; white-space: nowrap; font-size: 13px; }
+#board caption { text-align: left; padding: 6px 8px; color: #c22; font-weight: 600; letter-spacing: 0.05em; background: #111; }
+#board th { text-align: left; padding: 4px 8px; color: #888; font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid #333; }
+#board td { padding: 4px 8px; border-bottom: 1px solid #222; font-family: ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+#levels td:nth-child(2), #standings td:first-child { font-family: system-ui, sans-serif; }
+#standings td:nth-child(n+2) { text-align: right; }
+#board tr.leader td, #board tr.top td { background: #2a0a0a; color: #fff; }
+#board tr.leader td:first-child, #board tr.top td:first-child { box-shadow: inset 3px 0 0 #c22; }
+#board tr.mine .who { font-weight: 600; }
+.who { display: inline-flex; align-items: center; gap: 6px; }
+.you { font: 10px ui-monospace, Menlo, monospace; text-transform: uppercase; color: #c22; border: 1px solid #c22; padding: 0 4px; }
+.medals { display: inline-flex; gap: 4px; }
+.medal { font: 10px ui-monospace, Menlo, monospace; text-transform: uppercase; letter-spacing: 0.05em; color: #e8c060; border: 1px solid #e8c060; border-radius: 2px; padding: 0 4px; }

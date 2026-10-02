@@ -64,8 +64,212 @@
     return Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0');
   };
 
+  // The friends scoreboard. Names and numbers in it come from cards other people made, so every
+  // node is built with createElement and textContent and nothing here is ever read as markup.
+  function scoreboard() {
+    const nameInput = document.getElementById('player-name');
+    const makeButton = document.getElementById('make-card');
+    const cardBox = document.getElementById('my-card-box');
+    const myCard = document.getElementById('my-card');
+    const copyButton = document.getElementById('copy-card');
+    const friendCard = document.getElementById('friend-card');
+    const addButton = document.getElementById('add-friend');
+    const status = document.getElementById('board-status');
+    const standings = document.getElementById('standings');
+    const levels = document.getElementById('levels');
+    const DASH = '–';
+
+    const el = (tag, text, className) => {
+      const node = document.createElement(tag);
+      if (text !== undefined && text !== null) node.textContent = String(text);
+      if (className) node.className = className;
+      return node;
+    };
+    const say = (text, isError) => {
+      status.textContent = text;
+      status.classList.toggle('error', Boolean(isError));
+    };
+    const reason = (error) => (error && error.message ? error.message : String(error));
+
+    // A table inside its own box, so a wide board scrolls sideways instead of the page.
+    const table = (headings, captionText) => {
+      const node = el('table');
+      if (captionText) node.append(el('caption', captionText));
+      const head = el('tr');
+      for (const heading of headings) {
+        const th = el('th', heading);
+        th.scope = 'col';
+        head.append(th);
+      }
+      const thead = el('thead');
+      thead.append(head);
+      const body = el('tbody');
+      node.append(thead, body);
+      const box = el('div', null, 'table-box');
+      box.append(node);
+      return { box, body };
+    };
+
+    const row = (cells, className) => {
+      const tr = el('tr', null, className);
+      for (const cell of cells) {
+        if (cell instanceof Node) {
+          const td = el('td');
+          td.append(cell);
+          tr.append(td);
+        } else {
+          tr.append(el('td', cell));
+        }
+      }
+      return tr;
+    };
+
+    const playerCell = (entry) => {
+      const span = el('span', null, 'who');
+      span.append(el('span', entry.name));
+      if (entry.isOwner) span.append(el('span', 'you', 'you'));
+      return span;
+    };
+
+    const removeButton = (player) => {
+      const button = el('button', 'Remove', 'remove');
+      button.type = 'button';
+      button.setAttribute('aria-label', 'Remove ' + player.name);
+      button.addEventListener('click', () => {
+        button.disabled = true;
+        call('doom.removeFriend', { playerId: player.playerId })
+          .then(() => {
+            say('Removed ' + player.name);
+            return refresh();
+          })
+          .catch((error) => {
+            button.disabled = false;
+            say(reason(error), true);
+          });
+      });
+      return button;
+    };
+
+    const drawStandings = (players) => {
+      const { box, body } = table(['Player', 'Wins', 'Levels', 'Under par', 'Deaths', '']);
+      players.forEach((p, i) => {
+        // Only a leader with a win gets the highlight, so a board of all zeroes has no leader.
+        const classes = [i === 0 && p.wins > 0 ? 'leader' : '', p.isOwner ? 'mine' : ''].join(' ').trim();
+        body.append(row([
+          playerCell(p), p.wins, p.levelsFinished, p.levelsUnderPar, p.deaths,
+          p.isOwner ? '' : removeButton(p),
+        ], classes));
+      });
+      standings.replaceChildren(box);
+    };
+
+    const medals = (awards) => {
+      const span = el('span', null, 'medals');
+      for (const award of awards || []) span.append(el('span', award, 'medal'));
+      return span;
+    };
+
+    const drawLevels = (boards) => {
+      if (boards.length === 0) {
+        levels.replaceChildren(el('p', 'Finish a level to get on the board.', 'empty'));
+        return;
+      }
+      const tables = boards.map((level) => {
+        const caption = level.map + ' · ' + level.skillName + (level.par ? ' · par ' + level.par : '');
+        const { box, body } = table(['#', 'Player', 'Time', 'Kills', 'Items', 'Secrets', 'Deaths', 'Medals'], caption);
+        for (const s of level.standings) {
+          const done = s.finished && s.time !== null;
+          const classes = [done && s.rank === 1 ? 'top' : '', s.isOwner ? 'mine' : ''].join(' ').trim();
+          body.append(row([
+            done && s.rank !== null ? s.rank : DASH, playerCell(s), done ? s.time : DASH,
+            s.killPercent + '%', s.itemPercent + '%', s.hiddenAreaPercent + '%', s.deaths, medals(s.awards),
+          ], classes));
+        }
+        return box;
+      });
+      levels.replaceChildren(...tables);
+    };
+
+    const refresh = () => call('doom.scoreboard', {})
+      .then((r) => {
+        if (!r) return;
+        drawStandings(r.players || []);
+        drawLevels(r.levels || []);
+        const me = (r.players || []).find((p) => p.isOwner);
+        if (r.named && me && !nameInput.value && document.activeElement !== nameInput) nameInput.value = me.name;
+      })
+      .catch((error) => say('The scoreboard is not available: ' + reason(error), true));
+
+    // 16 characters from [a-z0-9]. Bytes of 252 and up are skipped so every character is equally likely.
+    const newPlayerId = () => {
+      const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+      let id = '';
+      while (id.length < 16) {
+        for (const b of crypto.getRandomValues(new Uint8Array(32))) {
+          if (b < 252 && id.length < 16) id += alphabet[b % 36];
+        }
+      }
+      return id;
+    };
+
+    makeButton.addEventListener('click', () => {
+      const name = nameInput.value.trim();
+      if (!name) {
+        say('Type your name first.', true);
+        nameInput.focus();
+        return;
+      }
+      makeButton.disabled = true;
+      call('doom.shareCard', { name, playerId: newPlayerId() })
+        .then((r) => {
+          myCard.value = r.code;
+          cardBox.hidden = false;
+          nameInput.value = r.name;
+          say('Your card holds ' + r.levels + (r.levels === 1 ? ' level' : ' levels') + '. Copy it and send it to a friend.');
+          return refresh();
+        })
+        .catch((error) => say(reason(error), true))
+        .finally(() => { makeButton.disabled = false; });
+    });
+
+    // The frame may refuse the clipboard. Then the code is selected so the player can copy it by hand.
+    copyButton.addEventListener('click', () => {
+      const byHand = () => {
+        myCard.focus();
+        myCard.select();
+        say('The browser would not copy it here. The card is selected: press Ctrl+C or Cmd+C to copy it.');
+      };
+      try {
+        if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('no clipboard');
+        navigator.clipboard.writeText(myCard.value).then(() => say('Copied. Send it to a friend.'), byHand);
+      } catch (error) {
+        byHand();
+      }
+    });
+
+    addButton.addEventListener('click', () => {
+      const code = friendCard.value.trim();
+      if (!code) {
+        say("Paste a friend's card first.", true);
+        friendCard.focus();
+        return;
+      }
+      addButton.disabled = true;
+      call('doom.importCard', { code })
+        .then((r) => {
+          friendCard.value = '';
+          say((r.replaced ? 'Updated ' : 'Added ') + r.added);
+          return refresh();
+        })
+        .catch((error) => say(reason(error), true))
+        .finally(() => { addButton.disabled = false; });
+    });
+
+    return { refresh };
+  }
+
   // Watches the game, turns what it sees into events, and keeps the stats strip current.
-  function trackStats(doom) {
+  function trackStats(doom, onSaved) {
     const strip = document.getElementById('stats');
     const saved = document.getElementById('saved');
     const sessionId = 's' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
@@ -75,6 +279,8 @@
     const send = (event, s, droppable) => {
       call('doom.record', { sessionId, event, stats: forRealm(s) }, droppable)
         .then((r) => {
+          // A finished level or a death can change the boards, so redraw once it is saved.
+          if (r && (event === 'levelComplete' || event === 'death')) onSaved();
           if (!r || !r.session) return;
           const t = r.session;
           saved.textContent = 'Saved to the realm: ' + t.levelsCompleted + ' of ' + t.levelsPlayed +
@@ -143,6 +349,10 @@
     call('doom.welcome', {}).then((r) => { if (r && r.message) status.textContent = r.message; })
       .catch(() => {});
 
+    // The scoreboard works on its own, so it is up even if the engine fails to load.
+    const board = scoreboard();
+    board.refresh();
+
     const doom = await createDoom({
       print: (text) => console.log(text),
       printErr: (text) => console.warn(text),
@@ -175,7 +385,7 @@
     canvas.addEventListener('click', () => canvas.focus());
     canvas.focus();
 
-    trackStats(doom);
+    trackStats(doom, board.refresh);
     doom.callMain(['-iwad', '/doom1.wad']);
   }
 

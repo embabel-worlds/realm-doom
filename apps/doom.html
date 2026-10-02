@@ -11,6 +11,27 @@
   </main>
   <section id="stats" aria-label="Game stats"><span>Stats show up once you start a level.</span></section>
   <p id="saved" role="status"></p>
+  <section id="board" aria-label="Scoreboard">
+    <h2>Scoreboard</h2>
+    <div class="board-row">
+      <label for="player-name">Your name</label>
+      <input id="player-name" type="text" maxlength="24" autocomplete="off" spellcheck="false">
+      <button id="make-card" type="button">Make my card</button>
+    </div>
+    <div id="my-card-box" class="board-row" hidden>
+      <label for="my-card">Your card</label>
+      <textarea id="my-card" rows="3" readonly spellcheck="false"></textarea>
+      <button id="copy-card" type="button">Copy</button>
+    </div>
+    <div class="board-row">
+      <label for="friend-card">A friend's card</label>
+      <textarea id="friend-card" rows="3" spellcheck="false"></textarea>
+      <button id="add-friend" type="button">Add friend</button>
+    </div>
+    <p id="board-status" role="status"></p>
+    <div id="standings"></div>
+    <div id="levels"></div>
+  </section>
   <footer>
     Arrows move · Ctrl or F fires · Space opens · Shift runs · Alt strafes · Esc for the menu
   </footer>
