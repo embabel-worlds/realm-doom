@@ -1,0 +1,16 @@
+handler: doom.bests
+joins:
+  - anchorLabel: DoomPlayer
+    keyField: playerId
+    recordKeyField: playerId
+    relationship: HAS_BEST
+    targetLabel: DoomBest
+keyArgument: playerId
+name: bests-by-player
+page:
+  argument: cursor
+  maxPages: 8
+pushdown:
+  - argument: map
+    property: map
+version: 1

@@ -1,10 +1,11 @@
 name: doom
 host: wasm
-version: 0.2.0
-description: Doom, shareware episode one, in a realm browser app.
+version: 0.3.0
+description: Doom, shareware episode one, in a realm browser app, with your runs in Virtual Cypher and a scoreboard to share with friends.
 author: embabel
 url: https://github.com/embabel-worlds/realm-doom
 icon: icon.svg
 tags:
   - game
   - demo
+  - scoreboard

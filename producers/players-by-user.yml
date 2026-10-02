@@ -1,0 +1,10 @@
+handler: doom.players
+joins:
+  - anchorLabel: AssistantUser
+    keyField: username
+    recordKeyField: username
+    relationship: KNOWS_DOOM_PLAYER
+    targetLabel: DoomPlayer
+keyArgument: username
+name: players-by-user
+version: 1

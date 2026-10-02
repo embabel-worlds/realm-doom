@@ -1,7 +1,11 @@
 {
   "handlers": [
     "doom.welcome",
-    "doom.record"
+    "doom.record",
+    "doom.shareCard",
+    "doom.importCard",
+    "doom.removeFriend",
+    "doom.scoreboard"
   ],
   "resources": [
     "apps/doom.html.assets/app.css",

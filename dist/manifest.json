@@ -1,6 +1,70 @@
 {
   "entries": [
     {
+      "description": "Each named player's best on every level, with their place on that level's board.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "description": "This realm's own next cursor, resent by the host.",
+            "type": "string"
+          },
+          "map": {
+            "description": "Only these maps, such as E1M1, when the query filters on map.",
+            "items": {
+              "maxLength": 16,
+              "type": "string"
+            },
+            "maxItems": 64,
+            "type": "array"
+          },
+          "playerId": {
+            "description": "The DoomPlayer ids the host is fetching for.",
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 256,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "playerId"
+        ],
+        "type": "object"
+      },
+      "name": "bests",
+      "namespace": "doom",
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    {
+      "description": "Adds a friend's card to the scoreboard, or replaces the one already held for that player.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "The code a friend's Doom app made.",
+            "maxLength": 12000,
+            "minLength": 12,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "type": "object"
+      },
+      "name": "importCard",
+      "namespace": "doom",
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    {
       "description": "Every level run in the sessions the host names: time, par, kills, items, secrets and deaths.",
       "inputSchema": {
         "additionalProperties": false,
@@ -36,6 +100,34 @@
         "type": "object"
       },
       "name": "levels",
+      "namespace": "doom",
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    {
+      "description": "The owner and every friend whose card was added, with their wins and totals, for the usernames the host names.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "username": {
+            "description": "The AssistantUser usernames the host is fetching for.",
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 256,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "type": "object"
+      },
+      "name": "players",
       "namespace": "doom",
       "outputSchema": {
         "type": "object"
@@ -88,6 +180,42 @@
       }
     },
     {
+      "description": "Takes a friend off the scoreboard.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "playerId": {
+            "description": "The friend's player id, as the scoreboard lists it.",
+            "maxLength": 32,
+            "minLength": 8,
+            "type": "string"
+          }
+        },
+        "required": [
+          "playerId"
+        ],
+        "type": "object"
+      },
+      "name": "removeFriend",
+      "namespace": "doom",
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    {
+      "description": "Who leads overall, then one board per level: the owner and their friends, fastest first, with the medals each run earned.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "scoreboard",
+      "namespace": "doom",
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    {
       "description": "Doom play sessions for the usernames the host names, newest first, with totals across their levels.",
       "inputSchema": {
         "additionalProperties": false,
@@ -123,6 +251,36 @@
         "type": "object"
       },
       "name": "sessions",
+      "namespace": "doom",
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    {
+      "description": "Makes the owner's card: a code holding their best run of every level, to send to a friend.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "The name friends will see on their scoreboard.",
+            "maxLength": 24,
+            "minLength": 1,
+            "type": "string"
+          },
+          "playerId": {
+            "description": "An id the app makes up. The realm keeps the first one it is given.",
+            "maxLength": 32,
+            "minLength": 8,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "playerId"
+        ],
+        "type": "object"
+      },
+      "name": "shareCard",
       "namespace": "doom",
       "outputSchema": {
         "type": "object"
