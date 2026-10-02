@@ -9,7 +9,7 @@ sessions and levels in its own SQLite and puts them in the graph. You can ask yo
 a run went, query your history in Virtual Cypher, and trade score cards with friends to see who
 is fastest on each level.
 
-![The Doom app: the game on top, the scoreboard with two friends below](docs/app.png)
+![Doom running in the realm's app, with the stats strip and the line saying what the realm saved](docs/game.png)
 
 ## Contents
 
@@ -87,10 +87,18 @@ The app's sandbox has no network, so stats travel as a card. A card is a code th
 
 The scoreboard then shows who leads overall and one board per level and skill, fastest first.
 
+![The scoreboard: a card ready to copy, the standings, and a board for each level with times and medals](docs/scoreboard.png)
+
 - A newer card from the same player replaces the older one.
 - You can keep up to 32 friends. **Remove** takes one off.
 - Your own row is live. A friend's row is as fresh as the last card they sent.
 - A refused card says why: it lost characters in the copy, it isn't a card, or it is your own.
+
+![A card that lost its last characters is refused with the reason](docs/refused-card.png)
+
+The scoreboard also fits a narrow screen. Wide tables scroll sideways inside their own box.
+
+<img src="docs/scoreboard-narrow.png" width="320" alt="The scoreboard on a narrow screen">
 
 ### How a best is worked out
 
@@ -206,7 +214,7 @@ shows that text. They throw only when something else went wrong.
 | `tests/questions.yml` | The questions people ask in chat, and the ones the realm can't answer. |
 | `hints/tips.yml` | The tips the host shows while the realm is installed. |
 | `icon.svg` | The realm's icon. |
-| `docs/app.png` | The screenshot above. |
+| `docs/` | The screenshots in this README. |
 
 ## What the appliance needs
 
