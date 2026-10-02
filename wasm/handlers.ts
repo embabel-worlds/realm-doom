@@ -377,7 +377,10 @@ export const recap = async (_input: unknown, ctx: Ctx) => {
 // Doom app, and both of you see the same scoreboard. Nothing checks a card is honest. It is for
 // playing against people you know.
 
-/** A player's best on one level at one skill. Counts are the best seen on any run. */
+/**
+ * A player's best on one level at one skill. The time and the counts come from one run: the fastest
+ * finished one, or the most recent run when the level was never finished.
+ */
 interface Best {
   map: string;
   skill: number;
@@ -465,9 +468,17 @@ const checksum = (text: string): string => {
   return sum.toString(16).padStart(4, "0");
 };
 
-/** A display name: 1 to 24 characters, no control characters, trimmed. */
+/** Characters that are invisible or change the direction of the text around them. */
+const HIDING = /[\u0080-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/;
+/** Half of a surrogate pair with its other half missing. */
+const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/;
+
+/**
+ * A display name: 1 to 24 characters, trimmed. It can't carry control characters, or anything that
+ * would let a friend's name hide or reorder the text shown next to it.
+ */
 const playerName = (value: unknown): string => {
-  if (typeof value !== "string") throw new Error("Invalid name");
+  if (typeof value !== "string" || HIDING.test(value) || LONE_SURROGATE.test(value)) throw new Error("Invalid name");
   const name = value.trim().replace(/\s+/g, " ");
   if (name.length < 1 || name.length > 24 || /[\u0000-\u001f\u007f]/.test(name)) throw new Error("Invalid name");
   return name;
@@ -515,13 +526,20 @@ const bestFromRow = (r: Row): Best => ({
   runs: num(r.runs),
 });
 
-/** The owner's best on every level they have played, worked out from their level runs. */
+/**
+ * The owner's best on every level they have played, worked out from their level runs. Each level
+ * and skill picks one run: finished runs first, the fastest of them, and among equal times the
+ * most recent. Its time and counts make the best. Deaths add up over every run.
+ */
 const ownBests = async (db: Db): Promise<Best[]> => {
+  const level = "PARTITION BY map, skill";
   const rows = await db.exec(
-    "SELECT map, skill, MIN(CASE WHEN completed_at IS NOT NULL THEN time_tics END) AS best_tics, MAX(par_tics) AS par_tics, " +
-      "MAX(kills) AS kills, MAX(total_kills) AS total_kills, MAX(items) AS items, MAX(total_items) AS total_items, " +
-      "MAX(secrets) AS secrets, MAX(total_secrets) AS total_secrets, SUM(deaths) AS deaths, " +
-      `SUM(CASE WHEN completed_at IS NOT NULL THEN 1 ELSE 0 END) AS runs FROM levels GROUP BY map, skill ORDER BY map, skill LIMIT ${MAX_BESTS}`,
+    "SELECT map, skill, CASE WHEN completed_at IS NOT NULL THEN time_tics END AS best_tics, level_par AS par_tics, " +
+      "kills, total_kills, items, total_items, secrets, total_secrets, all_deaths AS deaths, finished AS runs FROM (" +
+      `SELECT *, ROW_NUMBER() OVER (${level} ORDER BY completed_at IS NULL, CASE WHEN completed_at IS NOT NULL THEN time_tics END, started_at DESC, rowid DESC) AS pick, ` +
+      `MAX(par_tics) OVER (${level}) AS level_par, SUM(deaths) OVER (${level}) AS all_deaths, ` +
+      `SUM(CASE WHEN completed_at IS NOT NULL THEN 1 ELSE 0 END) OVER (${level}) AS finished FROM levels` +
+      `) WHERE pick = 1 ORDER BY map, skill LIMIT ${MAX_BESTS}`,
   );
   return rows.map(bestFromRow);
 };
@@ -586,7 +604,8 @@ const levelBoards = (players: Player[]): Board[] => {
     for (const best of player.bests) {
       const key = `${best.map}/${best.skill}`;
       const board = byLevel.get(key) ?? { map: best.map, skill: best.skill, parTics: null, standings: [] };
-      board.parTics = board.parTics ?? best.parTics;
+      // A par of 0 means the card or run had none.
+      if (board.parTics === null && best.parTics !== null && best.parTics > 0) board.parTics = best.parTics;
       board.standings.push({ playerId: player.playerId, name: player.name, isOwner: player.isOwner, best, rank: null });
       byLevel.set(key, board);
     }
@@ -615,7 +634,8 @@ const standingLines = (players: Player[]): string[] => {
     .filter((board) => board.standings.filter((s) => s.rank !== null).length > 1)
     .map((board) => {
       const timed = board.standings.filter((s) => s.rank !== null);
-      return `${board.map} on "${SKILLS[board.skill] ?? "unknown"}": ` + timed.map((s) => `${s.rank}. ${s.isOwner ? "the owner" : s.name} ${clock(s.best.bestTics ?? 0)}`).join(", ") + ".";
+      // A friend's name is free text from their card, so it goes in quoted.
+      return `${board.map} on "${SKILLS[board.skill] ?? "unknown"}": ` + timed.map((s) => `${s.rank}. ${s.isOwner ? "the owner" : JSON.stringify(s.name)} ${clock(s.best.bestTics ?? 0)}`).join(", ") + ".";
     });
   return lines.length === 0 ? [] : ["Against friends whose cards were added, fastest first:", ...lines];
 };
@@ -652,6 +672,10 @@ export const shareCard = (input: { name?: unknown; playerId?: unknown }, ctx: Ct
   }
   if (typeof input?.playerId !== "string" || !PLAYER_ID.test(input.playerId)) throw new Refusal("Invalid playerId");
   const known = await ownProfile(db);
+  // A card that reuses a friend's id would replace that friend on everyone's scoreboard.
+  if (!known && (await db.exec(`SELECT player_id FROM friends WHERE player_id = ${sql(input.playerId)}`)).length > 0) {
+    throw new Refusal("Invalid playerId");
+  }
   const playerId = known?.playerId ?? input.playerId;
   await db.exec(
     `INSERT INTO profile (id, player_id, name) VALUES (1, ${sql(playerId)}, ${sql(name)}) ON CONFLICT(id) DO UPDATE SET name = excluded.name`,
@@ -784,14 +808,12 @@ export const scoreboard = async (_input: unknown, ctx: Ctx) => {
  */
 export const players = async (input: { username?: unknown; cursor?: unknown }, ctx: Ctx) => {
   const usernames = producerKeys(input?.username);
-  // The whole list fits in one page, so the cursor is only checked. It is declared so the host
-  // reads this producer's `{ rows, next }` answer.
-  offsetCursor(input?.cursor);
+  const offset = offsetCursor(input?.cursor);
   const everyone = await boards(ctx.deps.db);
   const all = levelBoards(everyone);
   const rows = everyone.flatMap((p) => usernames.map((username) => ({ ...playerTotals(p, all), username })));
   ctx.log(`doom.players: ${everyone.length} players`);
-  return { rows, next: null };
+  return { rows: rows.slice(offset, offset + PAGE_SIZE), next: rows.length > offset + PAGE_SIZE ? String(offset + PAGE_SIZE) : null };
 };
 
 /**

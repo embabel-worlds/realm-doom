@@ -124,7 +124,7 @@ export default defineRealm({
         type: "object",
         additionalProperties: false,
         properties: {
-          code: { type: "string", minLength: 12, maxLength: 12000, description: "The code a friend's Doom app made." },
+          code: { type: "string", minLength: 1, maxLength: 16000, description: "The code a friend's Doom app made." },
         },
         required: ["code"],
       },

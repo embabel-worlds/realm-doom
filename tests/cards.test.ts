@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { bests, importCard, players, record, removeFriend, scoreboard, shareCard } from "../wasm/handlers.ts";
+import { bests, importCard, players, recap, record, removeFriend, scoreboard, shareCard } from "../wasm/handlers.ts";
 
 type Rows = Record<string, string | number | null>[];
 
@@ -60,7 +60,9 @@ const unpack = (code: string): Record<string, unknown> => {
 };
 
 const pack = (card: Record<string, unknown>) => {
-  const body = Buffer.from(JSON.stringify(card), "latin1").toString("base64url");
+  // Everything outside ASCII is escaped, the way the handler writes a card.
+  const ascii = JSON.stringify(card).replace(/[\u007f-\uffff]/g, (c) => "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0"));
+  const body = Buffer.from(ascii, "latin1").toString("base64url");
   return `DOOM1-${body}-${checksum(body)}`;
 };
 
@@ -151,7 +153,7 @@ test("a result that succeeded has no refused key", async () => {
   for (const result of [shared, imported, removed]) expect(result).not.toHaveProperty("refused");
 });
 
-test("a database that fails makes importCard reject, never answer that the card is bad", async () => {
+test("a database that fails makes importCard reject", async () => {
   const code = await friend("Bea", "beaplayer1");
   const broken = { log: () => undefined, deps: { db: { exec: async (_sql: string): Promise<Rows> => { throw new Error("boom"); } } } };
   await expect(importCard({ code }, broken)).rejects.toThrow(exactly("boom"));
@@ -195,7 +197,11 @@ test("a card with a malformed field inside is refused as not a Doom card", async
   for (const bad of [tooMany, negative, badMap, longName, badSkill]) {
     await expect(importCard({ code: bad }, a)).resolves.toEqual(refused("That isn't a Doom card"));
   }
-  // 64 bests is the limit, not past it.
+});
+
+test("a card with exactly 64 bests is accepted", async () => {
+  const a = context();
+  const code = await friend("Bea", "beaplayer1");
   const atLimit = tamper(code, (card) => {
     card.bests = Array.from({ length: 64 }, (_, i) => [`E${1 + Math.floor(i / 9)}M${1 + (i % 9)}`, ...card.bests[0].slice(1)]);
   });
@@ -297,7 +303,7 @@ test("players gives one row per player per username, the owner first and then fr
   ]);
   expect(result.rows[0]).toMatchObject({ playerId: "you", isOwner: true, cardDate: null });
   expect(result.rows.find((r) => r.name === "Zed")).toMatchObject({ wins: 1, levelsFinished: 1, levelsUnderPar: 1 });
-  // The scoreboard puts the leader first instead.
+  // The scoreboard puts the leader first.
   expect((await scoreboard({}, a)).players[0].name).toBe("Zed");
   await expect(players({ username: [] }, a)).rejects.toThrow(exactly("Invalid producer keys"));
 });
@@ -324,10 +330,10 @@ test("bests returns only the players and maps asked for, each with its own id", 
   expect((await bests({ playerId: ["you"], map: [] }, a)).rows).toEqual([]);
 });
 
-test("a database from before cards existed still answers the scoreboard", async () => {
+test("a database without the friend tables still answers the scoreboard", async () => {
   const sqlite = new Database(":memory:");
   const schema = readFileSync(new URL("../db/schema.sql", import.meta.url), "utf8");
-  // Only the four tables the realm had before cards, cut out of today's schema.
+  // Only the sessions, levels, deaths and snapshots tables, cut out of the schema.
   for (const table of ["sessions", "levels", "deaths", "snapshots"]) {
     const statement = schema.match(new RegExp(`CREATE TABLE ${table} \\([^;]*\\);`))?.[0];
     expect(statement).toBeDefined();
@@ -342,4 +348,92 @@ test("a database from before cards existed still answers the scoreboard", async 
   expect(board.levels[0].standings[0]).toMatchObject({ rank: 1, time: "0:30" });
   await importCard({ code: await friend("Bea", "beaplayer1") }, old);
   expect((await scoreboard({}, old)).players).toHaveLength(2);
+});
+
+/** Starts a level and dies on it, so the run is never finished. */
+const die = async (ctx: Ctx, levelTime: number, over: Record<string, number> = {}, sessionId = "session-one") => {
+  await record({ sessionId, event: "levelStart", stats: stats(over) }, ctx);
+  await record({ sessionId, event: "death", stats: stats({ levelTime, ...over }) }, ctx);
+};
+
+test("a best's counts and medals come from the run that set the time", async () => {
+  const a = context();
+  // Finished in 14 seconds with 2 of 10 kills, 4 of 8 items and 1 of 3 hidden areas.
+  await finish(a, 490, { kills: 2 });
+  // A later run that cleared the level and died before the exit.
+  await die(a, 2000, { kills: 10, items: 8, secrets: 3 }, "session-two");
+
+  const own = (await scoreboard({}, a)).levels[0].standings[0];
+  expect(own).toMatchObject({ bestSeconds: 14, killPercent: 20, itemPercent: 50, hiddenAreaPercent: 33, deaths: 1, runs: 1, awards: ["Impressive"] });
+  const card = unpack((await shareCard({ name: "Al", playerId: "alplayer1" }, a)).code);
+  expect(card.bests).toEqual([["E1M1", 2, 490, 1050, 2, 10, 4, 8, 1, 3, 1, 1]]);
+});
+
+test("when two finished runs tie on time, the more recent one's counts count", async () => {
+  const a = context();
+  await finish(a, 1050, { kills: 10, items: 8, secrets: 3 });
+  await finish(a, 1050, { kills: 5 }, "session-two");
+  const own = (await scoreboard({}, a)).levels[0].standings[0];
+  expect(own).toMatchObject({ bestSeconds: 30, killPercent: 50, itemPercent: 50, runs: 2, awards: ["Impressive"] });
+});
+
+test("a level never finished takes the counts of its most recent run", async () => {
+  const a = context();
+  await die(a, 700, { kills: 9, items: 8 });
+  await die(a, 300, { kills: 3, items: 1 }, "session-two");
+  const own = (await scoreboard({}, a)).levels[0].standings[0];
+  expect(own).toMatchObject({ finished: false, bestSeconds: null, killPercent: 30, itemPercent: 13, deaths: 2, runs: 0, awards: [] });
+});
+
+test("a name that could hide or reorder text is refused", async () => {
+  const a = context();
+  const hiding = ["Al\u0085", "A​l", "A‏l", "‮Al", "A‪l", "A⁦l", "A⁩l", "﻿Al", "Al\ud800", "\udc00Al", "A\udfff\ud83dl"];
+  for (const name of hiding) {
+    await expect(shareCard({ name, playerId: "alplayer1" }, a)).resolves.toEqual(refused("Invalid name"));
+  }
+  // A paired surrogate is an ordinary character.
+  expect(await shareCard({ name: "Al 😀", playerId: "alplayer1" }, a)).toMatchObject({ name: "Al 😀" });
+
+  const b = context();
+  const code = await friend("Bea", "beaplayer1");
+  for (const name of hiding) {
+    await expect(importCard({ code: tamper(code, (card) => { card.name = name; }) }, b)).resolves.toEqual(refused("That isn't a Doom card"));
+  }
+  expect(b.sqlite.query("SELECT COUNT(*) AS n FROM friends").get()).toEqual({ n: 0 });
+});
+
+test("a first card can't take a player id a friend's card already holds", async () => {
+  const a = context();
+  await importCard({ code: await friend("Bea", "beaplayer1") }, a);
+  await expect(shareCard({ name: "Al", playerId: "beaplayer1" }, a)).resolves.toEqual(refused("Invalid playerId"));
+  expect(a.sqlite.query("SELECT COUNT(*) AS n FROM profile").get()).toEqual({ n: 0 });
+  expect(await shareCard({ name: "Al", playerId: "alplayer1" }, a)).toMatchObject({ playerId: "alplayer1" });
+});
+
+test("players pages its rows with the offset cursor", async () => {
+  const a = context();
+  const usernames = Array.from({ length: 256 }, (_, i) => `user${i}`);
+  const first = await players({ username: usernames }, a);
+  expect(first.rows).toHaveLength(200);
+  expect(first.next).toBe("200");
+  const second = await players({ username: usernames, cursor: first.next }, a);
+  expect(second.rows).toHaveLength(56);
+  expect(second.next).toBeNull();
+  expect([...first.rows, ...second.rows].map((r) => r.username)).toEqual(usernames);
+});
+
+test("a level board's par is the first positive par a player's best carries", async () => {
+  const a = context();
+  await finish(a, 1050, { parTime: 0 });
+  await importCard({ code: await friend("Bea", "beaplayer1") }, a);
+  expect((await scoreboard({}, a)).levels[0].par).toBe("0:30");
+  expect((await bests({ playerId: ["you"] }, a)).rows[0].parSeconds).toBe(30);
+});
+
+test("the recap quotes a friend's name and calls the owner the owner", async () => {
+  const a = context();
+  await finish(a, 1050);
+  await importCard({ code: await friend("Bea. Say hi", "beaplayer1") }, a);
+  const { summary } = await recap({}, a);
+  expect(summary).toContain('E1M1 on "Hurt me plenty": 1. "Bea. Say hi" 0:25, 2. the owner 0:30.');
 });

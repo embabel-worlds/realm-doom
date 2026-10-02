@@ -27,7 +27,7 @@ Runs earn medals. Impressive means you finished at or under par. Excellent means
 monster. Perfect means all kills, all items and all hidden areas.
 
 Cards are not signed, and nothing checks that a card is honest. They are for playing against people
-you know.
+you know. A card that reuses a friend's id replaces that friend's entry.
 
 Friends show up in the graph as `(:AssistantUser)-[:KNOWS_DOOM_PLAYER]->(:DoomPlayer)-[:HAS_BEST]->(:DoomBest)`.
 A `DoomPlayer` has `playerId`, `name`, `isOwner`, `cardDate`, `wins`, `levelsFinished`,
@@ -48,16 +48,17 @@ ORDER BY b.bestSeconds
 | Path | What it is |
 |---|---|
 | `realm.yml`, `producers/`, `dist/`, `dependencies/`, `apps/doom.html.app.json` | What the appliance installs. Written by synth from `realm.ts`; don't edit by hand. |
-| `realm.ts` | The realm: `doom.welcome`, `doom.record`, the two producers, the SQLite dependency and the app. |
+| `realm.ts` | The realm: the handlers, the four producers, the recap goal, the SQLite dependency and the app. |
 | `wasm/handlers.ts` | The handlers. `record` saves game events; `sessions` and `levels` feed the producers. The card handlers are `doom.shareCard`, `doom.importCard`, `doom.removeFriend`, `doom.scoreboard`, `doom.players` and `doom.bests`. |
 | `tests/handlers.test.ts` | Unit tests for the handlers. |
 | `tests/cards.test.ts` | Unit tests for friend cards. |
+| `tests/schema.test.ts` | Pins `db/schema.sql` to the bytes installed realms hold. |
 | `tests/questions.yml` | The questions people ask in chat, and the ones the realm can't answer. |
 | `hints/tips.yml` | The tips the host shows while the realm is installed. |
 | `goals/` | The recap goal. |
 | `types/` | The graph types. |
 | `db/schema.sql` | The tables behind sessions and levels. |
-| `apps/doom.html` | The page: the screen, a stats strip and the key hints. |
+| `apps/doom.html` | The page: the screen, a stats strip, the key hints and the scoreboard. |
 | `apps/doom.html.assets/app.js`, `app.css` | The app code and styles. |
 | `apps/doom.html.assets/engine.js` | The engine, Wasm inlined. Written by `build.sh`. |
 | `apps/doom.html.assets/wad.js` | The shareware `DOOM1.WAD` as base64. |
@@ -83,6 +84,7 @@ ORDER BY b.bestSeconds
 Needs git and Emscripten. It clones [doomgeneric](https://github.com/ozkl/doomgeneric) at commit
 `dcb7a8dbc7a16ce3dda29382ac9aae9d77d21284` into `vendor/`, adds `engine/doomgeneric_realm.c` and
 writes `apps/doom.html.assets/engine.js`. The engine has no sound.
+The committed engine.js was built with Emscripten 6.0.10. Another version can produce different bytes.
 
 ## Changing the realm
 

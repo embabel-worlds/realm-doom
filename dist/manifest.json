@@ -48,8 +48,8 @@
         "properties": {
           "code": {
             "description": "The code a friend's Doom app made.",
-            "maxLength": 12000,
-            "minLength": 12,
+            "maxLength": 16000,
+            "minLength": 1,
             "type": "string"
           }
         },
