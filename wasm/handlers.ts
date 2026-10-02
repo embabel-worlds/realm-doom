@@ -665,8 +665,15 @@ export const importCard = async (input: { code?: unknown }, ctx: Ctx) => {
   if (typeof card.id !== "string" || !PLAYER_ID.test(card.id)) throw new Error("That isn't a Doom card");
   if (typeof card.at !== "string" || !/^[0-9T:.Z-]{20,30}$/.test(card.at)) throw new Error("That isn't a Doom card");
   if (!Array.isArray(card.bests) || card.bests.length > MAX_BESTS) throw new Error("That isn't a Doom card");
-  const name = playerName(card.name);
-  const bests = card.bests.map(bestIn);
+  // Whoever pastes a card can't fix one field of it, so any bad field gets the same answer.
+  let name: string;
+  let bests: Best[];
+  try {
+    name = playerName(card.name);
+    bests = card.bests.map(bestIn);
+  } catch {
+    throw new Error("That isn't a Doom card");
+  }
   const playerId = card.id;
 
   if ((await ownProfile(db))?.playerId === playerId) throw new Error("That's your own card");
