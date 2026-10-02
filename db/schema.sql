@@ -59,30 +59,3 @@ CREATE TABLE snapshots (
   secrets INTEGER NOT NULL
 );
 CREATE INDEX idx_snapshots_session ON snapshots (session_id, snapshot_id);
-CREATE TABLE IF NOT EXISTS profile (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  player_id TEXT NOT NULL,
-  name TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS friends (
-  player_id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  card_at TEXT NOT NULL,
-  imported_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS friend_bests (
-  player_id TEXT NOT NULL,
-  map TEXT NOT NULL,
-  skill INTEGER NOT NULL,
-  best_tics INTEGER NULL,
-  par_tics INTEGER NULL,
-  kills INTEGER NOT NULL,
-  total_kills INTEGER NOT NULL,
-  items INTEGER NOT NULL,
-  total_items INTEGER NOT NULL,
-  secrets INTEGER NOT NULL,
-  total_secrets INTEGER NOT NULL,
-  deaths INTEGER NOT NULL,
-  runs INTEGER NOT NULL,
-  PRIMARY KEY (player_id, map, skill)
-);

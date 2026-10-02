@@ -414,7 +414,7 @@ const MAP_NAME = /^E[1-9]M[1-9]$/;
 const UNNAMED = "You";
 const UNNAMED_ID = "you";
 
-/** The tables behind cards and friends. Made here too, so a database from before they existed gets them. */
+/** The tables behind cards and friends. They are made here because db/schema.sql can't change: the host ties a realm's saved database to that file's hash. */
 const ensureFriendTables = async (db: Db) => {
   await db.exec("CREATE TABLE IF NOT EXISTS profile (id INTEGER PRIMARY KEY CHECK (id = 1), player_id TEXT NOT NULL, name TEXT NOT NULL)");
   await db.exec("CREATE TABLE IF NOT EXISTS friends (player_id TEXT PRIMARY KEY, name TEXT NOT NULL, card_at TEXT NOT NULL, imported_at TEXT NOT NULL)");

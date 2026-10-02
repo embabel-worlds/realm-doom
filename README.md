@@ -86,8 +86,13 @@ writes `apps/doom.html.assets/engine.js`. The engine has no sound.
 
 ## Changing the realm
 
-`realm.ts` is the source of truth. After changing it, the handlers, the schema or the app, run the
-Embabel realm synth over `realm.ts` to rewrite the installable files at the repo root.
+`realm.ts` is the source of truth. After changing it, the handlers or the app, run the Embabel
+realm synth over `realm.ts` to rewrite the installable files at the repo root.
+
+Leave `db/schema.sql` exactly as it is. The host ties a realm's saved database to that file's
+hash, so an edited file locks players out of the history they already have. A table the realm
+needs later is made by the handlers with `CREATE TABLE IF NOT EXISTS`, the way
+`ensureFriendTables` does. `tests/schema.test.ts` fails if the file changes.
 
 ## Licences
 
