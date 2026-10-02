@@ -620,15 +620,37 @@ const standingLines = (players: Player[]): string[] => {
   return lines.length === 0 ? [] : ["Against friends whose cards were added, fastest first:", ...lines];
 };
 
+/** Something the player got wrong. The page shows the message, so it comes back as a result. */
+class Refusal extends Error {}
+
+/**
+ * Runs a handler the app calls with player input. The host drops a thrown error's message before
+ * it reaches the page, so a refusal comes back as `{ refused }`. Anything else, such as the
+ * database failing, still throws: a broken realm must never look like a bad card.
+ */
+const refusable = async <T extends object>(run: () => Promise<T>): Promise<T | { refused: string }> => {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof Refusal) return { refused: error.message };
+    throw error;
+  }
+};
+
 /**
  * Makes the owner's card: a code holding their best run of every level. The first call names the
  * player and fixes their id, so a newer card from the same person replaces their older one.
  */
-export const shareCard = async (input: { name?: unknown; playerId?: unknown }, ctx: Ctx) => {
+export const shareCard = (input: { name?: unknown; playerId?: unknown }, ctx: Ctx) => refusable(async () => {
   const db = ctx.deps.db;
   await ensureFriendTables(db);
-  const name = playerName(input?.name);
-  if (typeof input?.playerId !== "string" || !PLAYER_ID.test(input.playerId)) throw new Error("Invalid playerId");
+  let name: string;
+  try {
+    name = playerName(input?.name);
+  } catch {
+    throw new Refusal("Invalid name");
+  }
+  if (typeof input?.playerId !== "string" || !PLAYER_ID.test(input.playerId)) throw new Refusal("Invalid playerId");
   const known = await ownProfile(db);
   const playerId = known?.playerId ?? input.playerId;
   await db.exec(
@@ -641,30 +663,30 @@ export const shareCard = async (input: { name?: unknown; playerId?: unknown }, c
   const body = encode64(ascii);
   ctx.log(`doom.shareCard: ${bests.length} levels`);
   return { code: `${CARD_PREFIX}${body}-${checksum(body)}`, name, playerId, levels: bests.length };
-};
+});
 
 /** Adds a friend's card, or replaces the one already held for that player. */
-export const importCard = async (input: { code?: unknown }, ctx: Ctx) => {
+export const importCard = (input: { code?: unknown }, ctx: Ctx) => refusable(async () => {
   const db = ctx.deps.db;
   await ensureFriendTables(db);
-  if (typeof input?.code !== "string") throw new Error("That isn't a Doom card");
+  if (typeof input?.code !== "string") throw new Refusal("That isn't a Doom card");
   const code = input.code.replace(/\s+/g, "");
-  if (code.length > MAX_CARD_CHARS || !code.startsWith(CARD_PREFIX)) throw new Error("That isn't a Doom card");
+  if (code.length > MAX_CARD_CHARS || !code.startsWith(CARD_PREFIX)) throw new Refusal("That isn't a Doom card");
   const cut = code.lastIndexOf("-");
   const body = code.slice(CARD_PREFIX.length, cut);
   if (cut <= CARD_PREFIX.length || checksum(body) !== code.slice(cut + 1)) {
-    throw new Error("That card is incomplete. Copy the whole code and try again");
+    throw new Refusal("That card is incomplete. Copy the whole code and try again");
   }
   let card: Record<string, unknown>;
   try {
     card = JSON.parse(decode64(body)) as Record<string, unknown>;
   } catch {
-    throw new Error("That isn't a Doom card");
+    throw new Refusal("That isn't a Doom card");
   }
-  if (typeof card !== "object" || card === null || card.v !== 1) throw new Error("That card is from a version this realm can't read");
-  if (typeof card.id !== "string" || !PLAYER_ID.test(card.id)) throw new Error("That isn't a Doom card");
-  if (typeof card.at !== "string" || !/^[0-9T:.Z-]{20,30}$/.test(card.at)) throw new Error("That isn't a Doom card");
-  if (!Array.isArray(card.bests) || card.bests.length > MAX_BESTS) throw new Error("That isn't a Doom card");
+  if (typeof card !== "object" || card === null || card.v !== 1) throw new Refusal("That card is from a version this realm can't read");
+  if (typeof card.id !== "string" || !PLAYER_ID.test(card.id)) throw new Refusal("That isn't a Doom card");
+  if (typeof card.at !== "string" || !/^[0-9T:.Z-]{20,30}$/.test(card.at)) throw new Refusal("That isn't a Doom card");
+  if (!Array.isArray(card.bests) || card.bests.length > MAX_BESTS) throw new Refusal("That isn't a Doom card");
   // Whoever pastes a card can't fix one field of it, so any bad field gets the same answer.
   let name: string;
   let bests: Best[];
@@ -672,14 +694,14 @@ export const importCard = async (input: { code?: unknown }, ctx: Ctx) => {
     name = playerName(card.name);
     bests = card.bests.map(bestIn);
   } catch {
-    throw new Error("That isn't a Doom card");
+    throw new Refusal("That isn't a Doom card");
   }
   const playerId = card.id;
 
-  if ((await ownProfile(db))?.playerId === playerId) throw new Error("That's your own card");
+  if ((await ownProfile(db))?.playerId === playerId) throw new Refusal("That's your own card");
   const held = await db.exec(`SELECT player_id FROM friends WHERE player_id = ${sql(playerId)}`);
   if (held.length === 0 && num((await db.exec("SELECT COUNT(*) AS n FROM friends"))[0]?.n) >= MAX_FRIENDS) {
-    throw new Error(`The scoreboard holds ${MAX_FRIENDS} friends. Remove one first`);
+    throw new Refusal(`The scoreboard holds ${MAX_FRIENDS} friends. Remove one first`);
   }
   const now = new Date().toISOString();
   await db.exec(
@@ -695,18 +717,18 @@ export const importCard = async (input: { code?: unknown }, ctx: Ctx) => {
   }
   ctx.log(`doom.importCard: ${bests.length} levels`);
   return { added: name, playerId, levels: bests.length, replaced: held.length > 0 };
-};
+});
 
 /** Takes a friend off the scoreboard. */
-export const removeFriend = async (input: { playerId?: unknown }, ctx: Ctx) => {
+export const removeFriend = (input: { playerId?: unknown }, ctx: Ctx) => refusable(async () => {
   const db = ctx.deps.db;
   await ensureFriendTables(db);
-  if (typeof input?.playerId !== "string" || !PLAYER_ID.test(input.playerId)) throw new Error("Invalid playerId");
+  if (typeof input?.playerId !== "string" || !PLAYER_ID.test(input.playerId)) throw new Refusal("Invalid playerId");
   const held = await db.exec(`SELECT player_id FROM friends WHERE player_id = ${sql(input.playerId)}`);
   await db.exec(`DELETE FROM friend_bests WHERE player_id = ${sql(input.playerId)}`);
   await db.exec(`DELETE FROM friends WHERE player_id = ${sql(input.playerId)}`);
   return { removed: held.length > 0 };
-};
+});
 
 const playerTotals = (player: Player, all: Board[]) => {
   const finished = player.bests.filter((b) => b.bestTics !== null);
@@ -760,8 +782,11 @@ export const scoreboard = async (_input: unknown, ctx: Ctx) => {
  * The producer behind (:AssistantUser)-[:KNOWS_DOOM_PLAYER]->(:DoomPlayer): the owner and every
  * friend whose card was added.
  */
-export const players = async (input: { username?: unknown }, ctx: Ctx) => {
+export const players = async (input: { username?: unknown; cursor?: unknown }, ctx: Ctx) => {
   const usernames = producerKeys(input?.username);
+  // The whole list fits in one page, so the cursor is only checked. It is declared so the host
+  // reads this producer's `{ rows, next }` answer.
+  offsetCursor(input?.cursor);
   const everyone = await boards(ctx.deps.db);
   const all = levelBoards(everyone);
   const rows = everyone.flatMap((p) => usernames.map((username) => ({ ...playerTotals(p, all), username })));

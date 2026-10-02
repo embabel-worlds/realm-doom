@@ -7,4 +7,7 @@ joins:
     targetLabel: DoomPlayer
 keyArgument: username
 name: players-by-user
+page:
+  argument: cursor
+  maxPages: 2
 version: 1

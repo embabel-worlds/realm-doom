@@ -163,6 +163,7 @@ export default defineRealm({
             items: { type: "string", minLength: 1, maxLength: 256 },
             description: "The AssistantUser usernames the host is fetching for.",
           },
+          cursor: { type: "string", description: "This realm's own next cursor, resent by the host." },
         },
         required: ["username"],
       },
@@ -268,6 +269,7 @@ export default defineRealm({
           recordKeyField: "username",
         },
       ],
+      page: { argument: "cursor", maxPages: 2 },
     },
     "bests-by-player": {
       handler: "doom.bests",

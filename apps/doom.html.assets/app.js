@@ -138,7 +138,12 @@
       button.addEventListener('click', () => {
         button.disabled = true;
         call('doom.removeFriend', { playerId: player.playerId })
-          .then(() => {
+          .then((r) => {
+            if (r && r.refused) {
+              button.disabled = false;
+              say(r.refused, true);
+              return undefined;
+            }
             say('Removed ' + player.name);
             return refresh();
           })
@@ -222,6 +227,11 @@
       makeButton.disabled = true;
       call('doom.shareCard', { name, playerId: newPlayerId() })
         .then((r) => {
+          // A refusal is something the player can fix, so it comes back as a result to show.
+          if (r && r.refused) {
+            say(r.refused, true);
+            return undefined;
+          }
           myCard.value = r.code;
           cardBox.hidden = false;
           nameInput.value = r.name;
@@ -257,6 +267,10 @@
       addButton.disabled = true;
       call('doom.importCard', { code })
         .then((r) => {
+          if (r && r.refused) {
+            say(r.refused, true);
+            return undefined;
+          }
           friendCard.value = '';
           say((r.replaced ? 'Updated ' : 'Added ') + r.added);
           return refresh();

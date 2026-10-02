@@ -110,6 +110,10 @@
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
+          "cursor": {
+            "description": "This realm's own next cursor, resent by the host.",
+            "type": "string"
+          },
           "username": {
             "description": "The AssistantUser usernames the host is fetching for.",
             "items": {

@@ -114,24 +114,61 @@ test("the first player id sticks when a later card names another", async () => {
   expect(board.players[0]).toMatchObject({ playerId: "beaplayer1", name: "Beatrice", isOwner: true });
 });
 
-test("every refusal has its own message and a real cause", async () => {
+// The host drops a thrown error's message, so a refusal the player should read comes back as a
+// result. These resolve, and the result is the refusal and nothing else.
+const refused = (message: string) => ({ refused: message });
+
+test("every refusal comes back as a result with its own message", async () => {
   const a = context();
   const code = await friend("Bea", "beaplayer1");
 
-  await expect(importCard({ code: code.slice(0, code.length - 12) }, a)).rejects.toThrow(exactly("That card is incomplete. Copy the whole code and try again"));
-  await expect(importCard({ code: code.replace("DOOM1-", "DOOM2-") }, a)).rejects.toThrow(exactly("That isn't a Doom card"));
-  await expect(importCard({ code: 42 }, a)).rejects.toThrow(exactly("That isn't a Doom card"));
-  await expect(importCard({}, a)).rejects.toThrow(exactly("That isn't a Doom card"));
-  await expect(importCard({ code: tamper(code, (card) => { card.v = 2; }) }, a)).rejects.toThrow(exactly("That card is from a version this realm can't read"));
+  await expect(importCard({ code: code.slice(0, code.length - 12) }, a)).resolves.toEqual(refused("That card is incomplete. Copy the whole code and try again"));
+  await expect(importCard({ code: code.replace("DOOM1-", "DOOM2-") }, a)).resolves.toEqual(refused("That isn't a Doom card"));
+  await expect(importCard({ code: 42 }, a)).resolves.toEqual(refused("That isn't a Doom card"));
+  await expect(importCard({}, a)).resolves.toEqual(refused("That isn't a Doom card"));
+  // Characters outside the card alphabet, signed so they get past the checksum.
+  const garbled = `DOOM1-${"!!!!"}-${checksum("!!!!")}`;
+  await expect(importCard({ code: garbled }, a)).resolves.toEqual(refused("That isn't a Doom card"));
+  await expect(importCard({ code: tamper(code, (card) => { card.v = 2; }) }, a)).resolves.toEqual(refused("That card is from a version this realm can't read"));
 
   const mine = (await shareCard({ name: "Al", playerId: "alplayer1" }, a)).code;
-  await expect(importCard({ code: mine }, a)).rejects.toThrow(exactly("That's your own card"));
+  await expect(importCard({ code: mine }, a)).resolves.toEqual(refused("That's your own card"));
 
-  await expect(shareCard({ name: "   ", playerId: "alplayer1" }, a)).rejects.toThrow(exactly("Invalid name"));
-  await expect(shareCard({ name: "x".repeat(25), playerId: "alplayer1" }, a)).rejects.toThrow(exactly("Invalid name"));
-  await expect(shareCard({ name: "Al", playerId: "Al" }, a)).rejects.toThrow(exactly("Invalid playerId"));
-  await expect(removeFriend({ playerId: "no" }, a)).rejects.toThrow(exactly("Invalid playerId"));
+  await expect(shareCard({ name: "   ", playerId: "alplayer1" }, a)).resolves.toEqual(refused("Invalid name"));
+  await expect(shareCard({ name: "x".repeat(25), playerId: "alplayer1" }, a)).resolves.toEqual(refused("Invalid name"));
+  await expect(shareCard({ name: 7, playerId: "alplayer1" }, a)).resolves.toEqual(refused("Invalid name"));
+  await expect(shareCard({ name: "Al", playerId: "Al" }, a)).resolves.toEqual(refused("Invalid playerId"));
+  await expect(removeFriend({ playerId: "no" }, a)).resolves.toEqual(refused("Invalid playerId"));
+  await expect(removeFriend({}, a)).resolves.toEqual(refused("Invalid playerId"));
   expect(a.sqlite.query("SELECT COUNT(*) AS n FROM friends").get()).toEqual({ n: 0 });
+});
+
+test("a result that succeeded has no refused key", async () => {
+  const a = context();
+  const shared = await shareCard({ name: "Al", playerId: "alplayer1" }, a);
+  const imported = await importCard({ code: await friend("Bea", "beaplayer1") }, a);
+  const removed = await removeFriend({ playerId: "beaplayer1" }, a);
+  for (const result of [shared, imported, removed]) expect(result).not.toHaveProperty("refused");
+});
+
+test("a database that fails makes importCard reject, never answer that the card is bad", async () => {
+  const code = await friend("Bea", "beaplayer1");
+  const broken = { log: () => undefined, deps: { db: { exec: async (_sql: string): Promise<Rows> => { throw new Error("boom"); } } } };
+  await expect(importCard({ code }, broken)).rejects.toThrow(exactly("boom"));
+
+  // The same, failing only once the card has been checked and is being saved.
+  const a = context();
+  const savingFails = {
+    log: () => undefined,
+    deps: { db: { exec: async (sql: string) => { if (/^INSERT INTO friends/.test(sql)) throw new Error("boom"); return a.deps.db.exec(sql); } } },
+  };
+  await expect(importCard({ code }, savingFails)).rejects.toThrow(exactly("boom"));
+});
+
+test("players takes the cursor the host resends and refuses one this realm never wrote", async () => {
+  const a = context();
+  expect((await players({ username: ["james"], cursor: "0" }, a)).next).toBeNull();
+  await expect(players({ username: ["james"], cursor: "x" }, a)).rejects.toThrow(exactly("Invalid cursor"));
 });
 
 test("a 33rd friend is refused until one is removed, and a held friend can still update", async () => {
@@ -140,7 +177,7 @@ test("a 33rd friend is refused until one is removed, and a held friend can still
   for (let i = 0; i < 33; i++) codes.push(await friend(`Friend ${i}`, `friend${String(i).padStart(4, "0")}`));
   for (const code of codes.slice(0, 32)) await importCard({ code }, a);
 
-  await expect(importCard({ code: codes[32] }, a)).rejects.toThrow(exactly("The scoreboard holds 32 friends. Remove one first"));
+  await expect(importCard({ code: codes[32] }, a)).resolves.toEqual(refused("The scoreboard holds 32 friends. Remove one first"));
   expect((await importCard({ code: codes[0] }, a)).replaced).toBe(true);
   await removeFriend({ playerId: "friend0000" }, a);
   expect((await importCard({ code: codes[32] }, a)).added).toBe("Friend 32");
@@ -156,7 +193,7 @@ test("a card with a malformed field inside is refused as not a Doom card", async
   const longName = tamper(code, (card) => { card.name = "x".repeat(25); });
   const badSkill = tamper(code, (card) => { card.bests[0][1] = 9; });
   for (const bad of [tooMany, negative, badMap, longName, badSkill]) {
-    await expect(importCard({ code: bad }, a)).rejects.toThrow(exactly("That isn't a Doom card"));
+    await expect(importCard({ code: bad }, a)).resolves.toEqual(refused("That isn't a Doom card"));
   }
   // 64 bests is the limit, not past it.
   const atLimit = tamper(code, (card) => {
