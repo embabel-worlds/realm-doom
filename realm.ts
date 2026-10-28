@@ -295,6 +295,8 @@ export default defineRealm({
       module: "sqlite3-wasi",
       version: "3.53",
       sha256: "9a5542e25e42fbbb48501bae0ab4295cdf0fd0f41219ec3b6c891c4a282e7779",
+      kind: "sqlite",
+      from: { registry: "default" },
       persistent: true,
       init: "db/schema.sql",
     },
