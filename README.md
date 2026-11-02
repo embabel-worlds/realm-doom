@@ -198,7 +198,7 @@ shows that text. They throw only when something else went wrong.
 | Path | What it is |
 |---|---|
 | `realm.ts` | The realm: the handlers, the four producers, the recap goal, the SQLite dependency and the app. |
-| `realm.yml`, `producers/`, `goals/`, `types/`, `dist/`, `dependencies/`, `apps/doom.html.app.json` | What the appliance installs. Written by synth from `realm.ts`. Don't edit by hand. |
+| `realm.yml`, `producers/`, `goals/`, `types/`, `dist/`, `apps/doom.html.app.json` | Legacy realm files retained for YAML hosts. |
 | `wasm/handlers.ts` | The handlers. |
 | `db/schema.sql` | The tables behind sessions and levels. Frozen: see [Changing the realm](#changing-the-realm). |
 | `apps/doom.html` | The page: the screen, the stats strip, the scoreboard and the key hints. |
@@ -219,8 +219,9 @@ shows that text. They throw only when something else went wrong.
 ## What the appliance needs
 
 - Wasm realms switched on: `ASSISTANT_REALMLOADER_ADMISSIONENABLED=true`.
-- The `sqlite3-wasi` 3.53 module in the appliance's Wasm dependency store
-  (sha256 `9a5542e25e42fbbb48501bae0ab4295cdf0fd0f41219ec3b6c891c4a282e7779`).
+- The `sqlite3-wasi` 3.53 module from the operator's default registry. `realm.ts` pins its
+  sha256 to `9a5542e25e42fbbb48501bae0ab4295cdf0fd0f41219ec3b6c891c4a282e7779`.
+  The operator must also allow the module by digest and kind.
 - Nothing else. The app's page and assets come to about 6 MB, inside the appliance's default
   10 MiB limit for a realm browser app. The realm calls no outside API and needs no key.
 
@@ -253,8 +254,9 @@ byte with that version. Another version can produce different bytes.
 
 ## Changing the realm
 
-`realm.ts` is the source of truth. After changing it, the handlers or the app, run the Embabel
-realm synth over `realm.ts` to rewrite the installable files at the repo root.
+`realm.ts` is the preferred realm definition. It declares the SQLite dependency and its source.
+YAML realm files remain supported as legacy definitions. `dependencies/manifest.json` is kept
+for YAML hosts. Hosts need TypeScript realm and dependency source support to install this definition.
 
 Leave `db/schema.sql` exactly as it is. The host ties a realm's saved database to that file's
 hash, so an edited file locks players out of the history they already have. A table the realm
